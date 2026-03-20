@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Scraper UI</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-panel main-header">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>Instagram <span>Scraper</span></h1>
+            </div>
+            <p class="subtitle">Extract 100K+ Influencer Leads with Ease</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Configuration Panel -->
+            <section class="glass-panel config-panel">
+                <div class="panel-header">
+                    <h2>Scraping Configuration</h2>
+                    <div class="status-indicator">
+                        <span id="status-dot" class="dot idle"></span>
+                        <span id="status-text">Ready</span>
+                    </div>
+                </div>
+
+                <form id="scraper-form">
+                    <div class="form-group">
+                        <label for="hashtags">Target Hashtags (space-separated)</label>
+                        <input type="text" id="hashtags" name="hashtags" placeholder="e.g., fashion tech comedy" class="glass-input">
+                    </div>
+
+                    <div class="divider">OR</div>
+
+                    <div class="form-group">
+                        <label for="usernames">Specific Usernames (space-separated)</label>
+                        <input type="text" id="usernames" name="usernames" placeholder="e.g., nike adidas gucci" class="glass-input">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="minFollowers">Minimum Followers</label>
+                            <input type="number" id="minFollowers" name="minFollowers" value="100000" class="glass-input">
+                        </div>
+                        <div class="form-group half">
+                            <label for="outputFile">Output CSV Path</label>
+                            <input type="text" id="outputFile" name="outputFile" placeholder="e.g., results.csv" class="glass-input">
+                        </div>
+                    </div>
+
+                    <div class="toggles">
+                        <label class="toggle-container">
+                            <input type="checkbox" id="resetCheckpoint" name="resetCheckpoint">
+                            <span class="checkmark"></span>
+                            <span class="toggle-label">Reset Checkpoint (Re-scrape)</span>
+                        </label>
+                        <label class="toggle-container">
+                            <input type="checkbox" id="dryRun" name="dryRun">
+                            <span class="checkmark"></span>
+                            <span class="toggle-label">Dry Run (Test configuration only)</span>
+                        </label>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button type="submit" id="start-btn" class="glass-button primary">
+                            <span class="icon">▶</span> Start Scraping
+                        </button>
+                        <button type="button" id="stop-btn" class="glass-button danger" disabled>
+                            <span class="icon">■</span> Stop
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Terminal Output Panel -->
+            <section class="glass-panel terminal-panel">
+                <div class="panel-header">
+                    <h2>Live Output</h2>
+                    <button id="clear-log-btn" class="icon-button" title="Clear Logs">⟳</button>
+                </div>
+                <div class="terminal-container">
+                    <pre id="terminal-output" class="terminal-content">Initializing interface...\nReady to start scraping.</pre>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
