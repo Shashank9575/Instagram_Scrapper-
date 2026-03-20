@@ -154,24 +154,3 @@ You can tune the scraper's speed and depth directly in `settings.py`:
 
 ---
 
-## Responsible Use
-
-This tool automates interactions on Instagram and scrapes publicly available data. Use responsibly and in accordance with Instagram's Terms of Service. Be especially careful with the `SEND_DM` feature to avoid your account getting flagged for spam.
-
-
-##################################################################################################################
-1. Account Rotation (To bypass DM daily limits)
-Instagram limits how many DMs a single account can send per day (usually ~30 to 50 for a warm account). If you try to send 200, they will block you.
-
-Enhancement: We can update .env to accept a list of 5 or 10 different Instagram accounts. The code can automatically switch to the next account every 30 DMs so you can scale up to sending hundreds of messages a day without getting any individual account banned.
-2. Message Spintax / Randomization
-Instagram's spam filter looks for the exact same block of text being sent repeatedly. If you send the exact same template 50 times, they flag it as spam.
-
-Enhancement: We introduce "Spintax". Your message template would look like this: {Hi|Hello|Hey there} {full_name}, {I love your profile|Great content}!  The script would automatically pick a random combination for every single person, ensuring no two messages ever look exactly the same to the spam filters.
-3. "Follow Before DM" Feature
-When you DM someone on Instagram who doesn't follow you back, your message goes to their hidden "Message Requests" folder, which many influencers ignore.
-
-Enhancement: We can add a FOLLOW_BEFORE_DM = True setting. The scraper will click the "Follow" button right before opening the message box. Influencers get a notification that you followed them, making them overwhelmingly more likely to check your profile and accept your DM.
-4. Proxy Integration (As discussed earlier)
-If you plan to run this script 24/7 on a server, adding proxy support (via a tiny Chrome extension we generate in the code) is absolutely essential so Google and Instagram never realize a single bot is making thousands of page views from the same IP address.
-
