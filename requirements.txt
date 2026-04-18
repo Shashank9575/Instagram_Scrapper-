@@ -1,4 +1,6 @@
 colorlog>=6.8.0
-requests>=2.25
+requests>=2.25.0
 selenium>=4.18.0
-undetected-chromedriver>=3.5.0
+undetected-chromedriver>=3.5.5
+setuptools
+python-dotenv>=1.0.0

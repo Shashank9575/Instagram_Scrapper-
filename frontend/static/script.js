@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             hashtags: hashtags || null,
             usernames: usernames || null,
+            mode: document.getElementById('mode').value,
+            maxPerHashtag: document.getElementById('maxPerHashtag').value,
             minFollowers: document.getElementById('minFollowers').value,
             outputFile: document.getElementById('outputFile').value.trim() || null,
             resetCheckpoint: document.getElementById('resetCheckpoint').checked,

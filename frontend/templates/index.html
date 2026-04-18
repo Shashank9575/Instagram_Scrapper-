@@ -47,8 +47,22 @@
 
                     <div class="form-row">
                         <div class="form-group half">
+                            <label for="mode">Target Mode</label>
+                            <select id="mode" name="mode" class="glass-input">
+                                <option value="brands">Brands</option>
+                                <option value="influencers">Influencers</option>
+                            </select>
+                        </div>
+                        <div class="form-group half">
+                            <label for="maxPerHashtag">Target Profiles Per Hashtag</label>
+                            <input type="number" id="maxPerHashtag" name="maxPerHashtag" value="15" class="glass-input">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group half">
                             <label for="minFollowers">Minimum Followers</label>
-                            <input type="number" id="minFollowers" name="minFollowers" value="100000" class="glass-input">
+                            <input type="number" id="minFollowers" name="minFollowers" value="10000" class="glass-input">
                         </div>
                         <div class="form-group half">
                             <label for="outputFile">Output CSV Path</label>

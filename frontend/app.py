@@ -38,6 +38,12 @@ def start_scrape():
     if data.get('minFollowers'):
         cmd.extend(['--min-followers', str(data['minFollowers'])])
         
+    if data.get('maxPerHashtag'):
+        cmd.extend(['--max-per-hashtag', str(data['maxPerHashtag'])])
+        
+    if data.get('mode'):
+        cmd.extend(['--mode', data['mode']])
+        
     if data.get('outputFile'):
         cmd.extend(['--output', data['outputFile']])
         

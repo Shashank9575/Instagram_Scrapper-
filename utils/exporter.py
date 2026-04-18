@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 from utils.logger import get_logger
-from config.settings import OUTPUT_CSV, OUTPUT_DIR
+import config.settings as g_settings
 
 logger = get_logger()
 
@@ -44,11 +44,11 @@ class CSVExporter:
     - Returns export statistics
     """
 
-    def __init__(self, filepath: str = OUTPUT_CSV):
-        self.filepath = filepath
+    def __init__(self, filepath: str = None):
+        self.filepath = filepath or g_settings.OUTPUT_CSV
         self._existing_usernames: set = set()
         self._backed_up_this_session: bool = False
-        Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+        Path(g_settings.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
         self._load_existing_usernames()
 
     # ── Public API ────────────────────────────────────────────────────────────

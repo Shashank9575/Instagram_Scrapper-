@@ -1,12 +1,14 @@
 """
-Instagram Influencer Scraper — Main Entry Point
+Instagram Scraper — Main Entry Point
 ================================================
-Powered by Selenium + undetected-chromedriver (no API, no paid services).
+Single-browser Instagram-native scraping (no Google, no API).
 
 Usage examples:
     python main.py                                      # scrape all configured hashtags
     python main.py --hashtags fashion tech comedy       # custom hashtags
     python main.py --usernames nike adidas gucci        # scrape specific accounts
+    python main.py --mode brands                        # scrape brands (default)
+    python main.py --mode influencers                   # scrape influencers
     python main.py --min-followers 500000               # change threshold
     python main.py --output results.csv                 # custom output path
     python main.py --reset-checkpoint                   # ignore previous progress
@@ -32,11 +34,12 @@ logger = get_logger()
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Instagram Influencer Scraper — 100K+ followers",
+        description="Instagram Scraper — Brands & Influencers",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--hashtags",        nargs="+", default=None,  metavar="TAG",  help="Hashtags to search (no #)")
     p.add_argument("--usernames",       nargs="+", default=None,  metavar="USER", help="Scrape specific usernames directly")
+    p.add_argument("--mode",            choices=["brands", "influencers"], default=settings.TARGET_MODE, help="Scrape brands or influencers")
     p.add_argument("--output",          default=settings.OUTPUT_CSV,              help="Output CSV path")
     p.add_argument("--min-followers",   type=int, default=settings.MIN_FOLLOWERS, help="Minimum follower count")
     p.add_argument("--max-per-hashtag", type=int, default=settings.MAX_USERS_PER_HASHTAG, help="Max profiles per hashtag")
@@ -49,8 +52,15 @@ def apply_overrides(args):
     settings.MIN_FOLLOWERS        = args.min_followers
     settings.MAX_USERS_PER_HASHTAG = args.max_per_hashtag
     settings.OUTPUT_CSV           = args.output
+    settings.TARGET_MODE          = args.mode
     if args.hashtags:
-        settings.HASHTAGS = args.hashtags
+        cleaned_tags = []
+        for tag_group in args.hashtags:
+            # Split on commas and/or spaces so "fashion, shoes tech" → [fashion, shoes, tech]
+            import re
+            parts = re.split(r'[,\s]+', tag_group.strip())
+            cleaned_tags.extend([t.strip().lstrip('#') for t in parts if t.strip()])
+        settings.HASHTAGS = cleaned_tags
     if args.reset_checkpoint:
         cp = Path(settings.CHECKPOINT_FILE)
         if cp.exists():
@@ -60,6 +70,7 @@ def apply_overrides(args):
 
 def dry_run():
     logger.info("=== DRY RUN ===")
+    logger.info(f"Target mode  : {settings.TARGET_MODE.upper()}")
     logger.info(f"Hashtags     : {settings.HASHTAGS}")
     logger.info(f"Min followers: {settings.MIN_FOLLOWERS:,}")
     logger.info(f"Max/hashtag  : {settings.MAX_USERS_PER_HASHTAG}")
@@ -108,8 +119,10 @@ def main():
     apply_overrides(args)
 
     print("\n" + "=" * 60)
-    print("  INSTAGRAM INFLUENCER SCRAPER  (powered by Selenium)")
+    mode_label = settings.TARGET_MODE.upper()
+    print(f"  INSTAGRAM {mode_label} SCRAPER  (powered by Selenium)")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"  Loaded Accounts: {len(settings.ACCOUNTS)}")
     print("=" * 60)
 
     if args.dry_run:

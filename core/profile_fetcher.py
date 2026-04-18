@@ -1,14 +1,12 @@
 """
 Profile Fetcher — Selenium Edition
 ====================================
-Visits each Instagram profile URL directly in Chrome (already open from
-discovery) and extracts data from the page HTML/JSON.
+Visits each Instagram profile URL directly in Chrome and extracts data.
 
-Why this approach:
-- Uses the SAME Chrome browser already open for Google search
-- No Instagram API calls at all — zero rate limiting risk
-- Instagram serves the page normally to a real logged-in browser
-- Data is extracted from JSON embedded in the page's <script> tags
+Extraction priority:
+1. JSON blobs in <script> tags (fast & complete)
+2. DOM-based extraction (reliable when JSON is stripped — from demo.py)
+3. Meta tag extraction (last resort, minimal data)
 
 Data extracted per profile:
 - username, full_name, bio, followers, following, post_count
@@ -20,6 +18,14 @@ import json
 import time
 import random
 from typing import Dict, Optional, List, Any
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    TimeoutException,
+)
 
 from core.parser import extract_email, extract_hashtags, detect_category
 from utils.logger import get_logger
@@ -51,7 +57,7 @@ ADDITIONAL_DATA_RE = re.compile(
 class SeleniumProfileFetcher:
     """
     Fetches Instagram profile data using the Chrome browser (Selenium).
-    Reuses the same driver instance from DiscoveryEngine.
+    Reuses the same driver instance used for login and discovery.
     """
 
     def __init__(self, driver, min_followers: int = 100_000):
@@ -82,32 +88,27 @@ class SeleniumProfileFetcher:
 
             # Try to extract data from embedded JSON first (most reliable)
             data = self._extract_from_json(page_source, username)
-            if data:
-                if data["followers"] < self._min_followers:
-                    logger.debug(f"  Skip @{username}: {data['followers']:,} followers")
-                    return None
-                data["discovered_via"] = source
-                logger.info(
-                    f"  ✓ @{username} | {data['followers']:,} followers | "
-                    f"{data['category']} | email: {data['email'] or 'N/A'}"
-                )
-                return data
+            if not data:
+                # Fallback 2: DOM-based extraction (from demo.py — reliable)
+                data = self._extract_from_dom(username)
+            if not data:
+                # Fallback 3: HTML meta tags (minimal data)
+                data = self._extract_from_meta(page_source, username)
 
-            # Fallback: extract from HTML meta tags
-            data = self._extract_from_meta(page_source, username)
-            if data:
-                if data["followers"] < self._min_followers:
-                    logger.debug(f"  Skip @{username}: {data['followers']:,} followers")
-                    return None
-                data["discovered_via"] = source
-                logger.info(
-                    f"  ✓ @{username} | {data['followers']:,} followers | "
-                    f"{data['category']} | email: {data['email'] or 'N/A'}"
-                )
-                return data
+            if not data:
+                logger.debug(f"  Could not parse profile data for @{username}")
+                return None
 
-            logger.debug(f"  Could not parse profile data for @{username}")
-            return None
+            if data["followers"] < self._min_followers:
+                logger.debug(f"  Skip @{username}: {data['followers']:,} followers")
+                return None
+
+            data["discovered_via"] = source
+            logger.info(
+                f"  ✓ @{username} | {data['followers']:,} followers | "
+                f"{data['category']} | email: {data['email'] or 'N/A'}"
+            )
+            return data
 
         except Exception as e:
             logger.debug(f"  Error fetching @{username}: {e}")
@@ -291,6 +292,187 @@ class SeleniumProfileFetcher:
             "external_url":        "",
             "discovered_via":      "",
         }
+
+    # ── DOM-Based Extraction (from demo.py) ────────────────────────────────
+
+    def _extract_from_dom(self, username: str) -> Optional[Dict]:
+        """
+        Extract profile data directly from the visible DOM elements.
+        This is more reliable than JSON when Instagram strips script data.
+        """
+        try:
+            self._expand_bio()
+
+            followers = self._get_followers_from_dom()
+            if followers == 0:
+                return None
+
+            category_label = self._get_category_from_dom()
+
+            # Extract bio text
+            bio = self._get_bio_from_dom()
+
+            # Extract full name from header
+            full_name = ""
+            try:
+                name_el = self._driver.find_element(
+                    By.CSS_SELECTOR, "header section span[dir='auto']"
+                )
+                full_name = name_el.text.strip()
+            except NoSuchElementException:
+                pass
+
+            bio_hashtags = extract_hashtags(bio)
+            email = extract_email(bio)
+
+            # Use DOM category if available, else detect from bio
+            if category_label:
+                category = category_label
+            else:
+                category = detect_category(bio, bio_hashtags)
+
+            return {
+                "username":            username,
+                "full_name":           full_name,
+                "email":               email,
+                "bio":                 bio.replace("\n", " "),
+                "followers":           followers,
+                "following":           0,
+                "post_count":          0,
+                "category":            category,
+                "hashtags_used":       ", ".join(bio_hashtags[:20]),
+                "is_verified":         False,
+                "is_business_account": False,
+                "profile_url":         f"https://www.instagram.com/{username}/",
+                "external_url":        "",
+                "discovered_via":      "",
+            }
+        except Exception as e:
+            logger.debug(f"  DOM extraction failed for @{username}: {e}")
+            return None
+
+    def _expand_bio(self):
+        """Click the 'more' button to expand truncated bios."""
+        try:
+            more_btn = self._driver.find_element(
+                By.XPATH,
+                '//div[@role="button"][.//span[contains(text(),"more")]]'
+            )
+            more_btn.click()
+            time.sleep(1)
+        except NoSuchElementException:
+            pass
+        except Exception:
+            pass
+
+    def _get_bio_from_dom(self) -> str:
+        """Extract bio text from visible DOM spans."""
+        try:
+            WebDriverWait(self._driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "span._ap3a._aaco._aacu[dir='auto']")
+                )
+            )
+            bio_spans = self._driver.find_elements(
+                By.CSS_SELECTOR, "span._ap3a._aaco._aacu[dir='auto']"
+            )
+            # The longest span is typically the bio
+            return max((s.text.strip() for s in bio_spans), key=len, default="")
+        except (TimeoutException, NoSuchElementException):
+            return ""
+
+    def _get_followers_from_dom(self) -> int:
+        """
+        Extract follower count from the profile page DOM.
+        Uses 3 strategies (from demo.py).
+        """
+        # Strategy 1: title attribute (raw integer with commas)
+        for xpath in [
+            '//span[contains(text(),"followers")]//span[@title]',
+            '//span[contains(text(),"followers")]/preceding-sibling::span[@title]',
+            '//span[@title][following-sibling::span[contains(text(),"followers")]]',
+        ]:
+            try:
+                el = self._driver.find_element(By.XPATH, xpath)
+                title = el.get_attribute("title")
+                if title:
+                    return int(title.replace(",", ""))
+            except (NoSuchElementException, ValueError):
+                pass
+
+        # Strategy 2: visible abbreviated label (38.2K, 1.1M)
+        try:
+            el = self._driver.find_element(
+                By.XPATH,
+                '//span[contains(text(),"followers")]'
+                '//span[contains(@class,"html-span")]'
+            )
+            text = el.text.strip()
+            if text:
+                return self._parse_count_from_text(text + " Followers", "Followers")
+        except NoSuchElementException:
+            pass
+
+        # Strategy 3: meta description fallback
+        try:
+            meta = self._driver.find_element(
+                By.XPATH, '//meta[@name="description"]'
+            )
+            content = meta.get_attribute("content") or ""
+            m = re.search(r"([\d,]+)\s+Followers", content, re.IGNORECASE)
+            if m:
+                return int(m.group(1).replace(",", ""))
+        except (NoSuchElementException, ValueError):
+            pass
+
+        return 0
+
+    def _get_category_from_dom(self) -> str:
+        """
+        Extract the Instagram profile category label (e.g., 'Digital creator',
+        'Musician/band', 'Public figure').
+        Uses CSS class fingerprinting from demo.py.
+        """
+        # Strategy 1: exact CSS class fingerprint
+        for selector in [
+            "div._ap3a._aaco._aacu._aacy._aad6._aade[dir='auto']",
+            "div._ap3a._aaco._aacu._aad6._aade[dir='auto']",
+        ]:
+            try:
+                el = self._driver.find_element(By.CSS_SELECTOR, selector)
+                text = el.text.strip()
+                if text and text.lower() != "follow":
+                    return text
+            except NoSuchElementException:
+                pass
+
+        # Strategy 2: span variant
+        try:
+            el = self._driver.find_element(
+                By.CSS_SELECTOR,
+                "span._ap3a._aaco._aacu._aacy._aad6._aade[dir='auto']"
+            )
+            text = el.text.strip()
+            if text and text.lower() != "follow":
+                return text
+        except NoSuchElementException:
+            pass
+
+        # Strategy 3: XPath with class attributes
+        try:
+            candidates = self._driver.find_elements(
+                By.XPATH,
+                '//*[@dir="auto" and contains(@class,"_aad6") '
+                'and contains(@class,"_aade")]'
+            )
+            for el in candidates:
+                text = el.text.strip()
+                if text and len(text) <= 60 and text.lower() != "follow":
+                    return text
+        except NoSuchElementException:
+            pass
+
+        return ""
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
