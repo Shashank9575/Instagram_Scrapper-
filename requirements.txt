@@ -2,5 +2,7 @@ colorlog>=6.8.0
 requests>=2.25.0
 selenium>=4.18.0
 undetected-chromedriver>=3.5.5
-setuptools
+setuptools>=65.0.0
 python-dotenv>=1.0.0
+Flask>=2.2.0
+charset-normalizer>=3.0.0
